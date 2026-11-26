@@ -1,0 +1,18 @@
+{
+  "name": "BasketStats iPad - Segnapunti & Statistiche",
+  "short_name": "BasketStats",
+  "description": "Segnapunti e statistiche complete di basket ottimizzate per iPad, utilizzabile offline.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

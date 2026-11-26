@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>BasketStats iPad — Segnapunti &amp; Statistiche</title>
+
+  <!-- iPad / iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BasketStats" />
+  <meta name="theme-color" content="#0b1120" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ==================== SETUP VIEW ==================== -->
+    <section id="setup-view" class="view active">
+      <header class="setup-header">
+        <div class="brand">
+          <div class="brand-icon">🏀</div>
+          <div>
+            <h1>BasketStats <span class="badge-ipad">iPad</span></h1>
+            <p class="subtitle">Segnapunti live, statistiche complete &amp; tabellino offline</p>
+          </div>
+        </div>
+        <button id="btn-pwa-help" class="btn btn-ghost btn-sm" type="button">
+          📲 Aggiungi a Home iPad
+        </button>
+      </header>
+
+      <div id="resume-banner" class="resume-banner hidden">
+        <div class="resume-info">
+          <span class="pulse-dot"></span>
+          <div>
+            <strong>Partita in corso salvata</strong>
+            <div id="resume-summary" class="resume-summary"></div>
+          </div>
+        </div>
+        <div class="resume-actions">
+          <button id="btn-resume-match" class="btn btn-primary" type="button">▶ Riprendi Partita</button>
+          <button id="btn-discard-active" class="btn btn-danger-outline btn-sm" type="button">Scarta</button>
+        </div>
+      </div>
+
+      <div class="setup-grid">
+        <!-- Left Column: Teams & Rules -->
+        <div class="setup-col">
+          <div class="card">
+            <h2 class="card-title">1. Squadre</h2>
+            <div class="team-inputs">
+              <div class="form-group">
+                <label for="home-name">La Tua Squadra (Statistiche complete)</label>
+                <div class="input-with-color">
+                  <input id="home-color" type="color" value="#f97316" aria-label="Colore tua squadra" />
+                  <input id="home-name" type="text" placeholder="Es. Olimpia Basket" maxlength="28" autocomplete="off" />
+                </div>
+              </div>
+              <div class="vs-divider">VS</div>
+              <div class="form-group">
+                <label for="away-name">Squadra Avversaria (Punteggio, falli, timeout)</label>
+                <div class="input-with-color">
+                  <input id="away-color" type="color" value="#38bdf8" aria-label="Colore squadra avversaria" />
+                  <input id="away-name" type="text" placeholder="Es. Virtus Ospiti" maxlength="28" autocomplete="off" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">2. Regole &amp; Cronometro (FIBA)</h2>
+            <div class="rules-grid">
+              <div class="form-group">
+                <label for="quarter-minutes">Durata Quarto</label>
+                <select id="quarter-minutes">
+                  <option value="10" selected>10 minuti (FIBA Standard)</option>
+                  <option value="8">8 minuti (Giovanili / Minibasket)</option>
+                  <option value="12">12 minuti (NBA / Pro)</option>
+                  <option value="5">5 minuti (Torneo / Rapida)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="bonus-fouls">Falli di Squadra per Bonus</label>
+                <select id="bonus-fouls">
+                  <option value="5" selected>5° fallo (FIBA: bonus dopo 4 falli)</option>
+                  <option value="4">4° fallo</option>
+                  <option value="6">6° fallo</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="ot-minutes">Durata Supplementare (OT)</label>
+                <select id="ot-minutes">
+                  <option value="5" selected>5 minuti (FIBA)</option>
+                  <option value="3">3 minuti</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="timeout-rule">Timeout per Tempo</label>
+                <select id="timeout-rule">
+                  <option value="fiba" selected>FIBA (2 nel 1°T, 3 nel 2°T)</option>
+                  <option value="3-3">3 per tempo</option>
+                  <option value="free">Liberi (fino a 5)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header-row">
+              <h2 class="card-title">4. Storico Partite</h2>
+              <span id="history-count" class="pill">0</span>
+            </div>
+            <div id="history-list" class="history-list">
+              <p class="empty-hint">Nessuna partita salvata. A fine partita potrai salvarla qui.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Roster -->
+        <div class="setup-col">
+          <div class="card roster-card">
+            <div class="card-header-row">
+              <div>
+                <h2 class="card-title">3. Rosa Giocatori (Salvata in automatico)</h2>
+                <p class="card-subtitle">Seleziona fino a 5 titolari in quintetto (puoi cambiarli sempre durante la partita)</p>
+              </div>
+              <span id="starter-count-pill" class="pill pill-accent">0 / 5 in quintetto</span>
+            </div>
+
+            <form id="add-player-form" class="add-player-form">
+              <input id="player-number" type="number" min="0" max="99" placeholder="#" required aria-label="Numero maglia" />
+              <input id="player-name" type="text" placeholder="Nome giocatore (es. Rossi)" maxlength="24" required aria-label="Nome giocatore" />
+              <button class="btn btn-primary" type="submit">+ Aggiungi</button>
+            </form>
+
+            <div class="roster-toolbar">
+              <button id="btn-load-sample" class="btn btn-ghost btn-xs" type="button">Carica rosa esempio</button>
+              <button id="btn-clear-roster" class="btn btn-ghost btn-xs text-danger" type="button">Svuota rosa</button>
+            </div>
+
+            <div id="setup-roster-list" class="setup-roster-list"></div>
+
+            <div class="start-match-wrap">
+              <button id="btn-start-match" class="btn btn-start" type="button">
+                🏀 INIZIA PARTITA
+              </button>
+              <p id="start-validation-msg" class="validation-msg hidden"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== LIVE MATCH VIEW ==================== -->
+    <section id="match-view" class="view">
+      <!-- Top Sticky Scoreboard -->
+      <header class="scoreboard">
+        <!-- Home Team -->
+        <div class="sb-team sb-home">
+          <div class="sb-team-bar" id="sb-home-bar"></div>
+          <div class="sb-team-info">
+            <div class="sb-team-name-row">
+              <span id="sb-home-name" class="sb-team-name">Tua Squadra</span>
+              <span id="sb-home-bonus" class="bonus-badge hidden">BONUS</span>
+            </div>
+            <div class="sb-meta-row">
+              <div class="foul-counter" title="Falli di squadra nel quarto">
+                <span class="meta-label">FALLI</span>
+                <div id="sb-home-fouls-pips" class="pips"></div>
+                <span id="sb-home-fouls-num" class="meta-num">0</span>
+              </div>
+              <div class="timeout-counter">
+                <span class="meta-label">TO</span>
+                <div id="sb-home-to-pips" class="pips clickable-pips"></div>
+                <button id="btn-home-to" class="btn-mini" type="button" title="Chiama Timeout Tua Squadra">+TO</button>
+              </div>
+            </div>
+          </div>
+          <div id="sb-home-score" class="sb-score">0</div>
+        </div>
+
+        <!-- Center Clock & Quarter -->
+        <div class="sb-center">
+          <div class="quarter-row">
+            <button id="btn-prev-q" class="btn-icon-xs" type="button" title="Quarto precedente">◀</button>
+            <span id="sb-quarter" class="quarter-badge">Q1</span>
+            <button id="btn-next-q" class="btn-icon-xs" type="button" title="Quarto successivo">▶</button>
+          </div>
+          <button id="btn-clock-toggle" class="clock-display" type="button" title="Tocca per avviare o fermare il cronometro">
+            <span id="sb-clock">10:00</span>
+            <span id="clock-status-label" class="clock-status">PAUSA</span>
+          </button>
+          <div class="clock-controls">
+            <button id="btn-edit-clock" class="btn-mini" type="button">⏱ Modifica</button>
+            <button id="btn-reset-clock" class="btn-mini" type="button">↺ Reset</button>
+          </div>
+        </div>
+
+        <!-- Away Team -->
+        <div class="sb-team sb-away">
+          <div id="sb-away-score" class="sb-score">0</div>
+          <div class="sb-team-info">
+            <div class="sb-team-name-row">
+              <span id="sb-away-name" class="sb-team-name">Avversari</span>
+              <span id="sb-away-bonus" class="bonus-badge hidden">BONUS</span>
+            </div>
+            <div class="sb-away-quick">
+              <button class="btn-opp-pts" data-opp-pts="1" type="button">+1</button>
+              <button class="btn-opp-pts" data-opp-pts="2" type="button">+2</button>
+              <button class="btn-opp-pts" data-opp-pts="3" type="button">+3</button>
+              <button class="btn-opp-pts btn-opp-minus" data-opp-pts="-1" type="button">-1</button>
+            </div>
+            <div class="sb-meta-row">
+              <div class="foul-counter">
+                <span class="meta-label">FALLI</span>
+                <div id="sb-away-fouls-pips" class="pips"></div>
+                <span id="sb-away-fouls-num" class="meta-num">0</span>
+                <button id="btn-away-foul" class="btn-mini btn-mini-warn" type="button">+F</button>
+                <button id="btn-away-foul-minus" class="btn-mini" type="button">-F</button>
+              </div>
+              <div class="timeout-counter">
+                <span class="meta-label">TO</span>
+                <div id="sb-away-to-pips" class="pips clickable-pips"></div>
+                <button id="btn-away-to" class="btn-mini" type="button">+TO</button>
+              </div>
+            </div>
+          </div>
+          <div class="sb-team-bar" id="sb-away-bar"></div>
+        </div>
+      </header>
+
+      <!-- Utility Sub-bar -->
+      <div class="match-toolbar">
+        <div class="toolbar-left">
+          <button id="btn-undo" class="btn btn-undo" type="button" disabled>
+            ↩ Annulla
+          </button>
+          <div id="last-action-toast" class="last-action-toast">
+            Pronto: seleziona un giocatore e segna una statistica.
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <button id="btn-open-pbp" class="btn btn-ghost btn-sm" type="button">📝 Cronaca</button>
+          <button id="btn-open-boxscore" class="btn btn-secondary btn-sm" type="button">📊 Tabellino</button>
+          <button id="btn-finish-match" class="btn btn-primary btn-sm" type="button">🏁 Fine / Esporta</button>
+          <button id="btn-back-setup" class="btn btn-ghost btn-sm" type="button">🏠 Menu</button>
+        </div>
+      </div>
+
+      <!-- Main iPad Split Workspace -->
+      <main class="match-workspace">
+        <!-- Players Panel -->
+        <section class="players-panel">
+          <div class="panel-header">
+            <h3>In Campo <span id="on-court-count" class="pill pill-accent">5</span></h3>
+            <button id="btn-sub-mode" class="btn btn-ghost btn-sm" type="button">
+              🔄 Sostituisci
+            </button>
+          </div>
+          <div id="sub-banner" class="sub-banner hidden">
+            <span>Modalità Sostituzione: tocca un giocatore in panchina e poi chi esce dal campo (o viceversa).</span>
+            <button id="btn-cancel-sub" class="btn btn-xs btn-ghost" type="button">Fine</button>
+          </div>
+
+          <div id="court-players-grid" class="court-players-grid"></div>
+
+          <div class="panel-header bench-header">
+            <h3>Panchina <span id="bench-count" class="pill">0</span></h3>
+          </div>
+          <div id="bench-players-grid" class="bench-players-grid"></div>
+        </section>
+
+        <!-- Action Pad -->
+        <aside class="action-pad">
+          <div id="selected-player-banner" class="selected-player-banner empty">
+            <span class="sel-hint">👆 Tocca un giocatore a sinistra</span>
+          </div>
+
+          <div class="pad-section">
+            <div class="pad-label">TIRI &amp; PUNTI</div>
+            <div class="shot-grid">
+              <button class="stat-btn stat-made" data-stat="FTM" type="button">
+                <span class="stat-main">+1</span>
+                <span class="stat-sub">Tiro Libero ✓</span>
+              </button>
+              <button class="stat-btn stat-miss" data-stat="FTA_MISS" type="button">
+                <span class="stat-main">✗ TL</span>
+                <span class="stat-sub">Libero Sbagliato</span>
+              </button>
+
+              <button class="stat-btn stat-made" data-stat="FG2M" type="button">
+                <span class="stat-main">+2</span>
+                <span class="stat-sub">Da 2 Segnato ✓</span>
+              </button>
+              <button class="stat-btn stat-miss" data-stat="FG2_MISS" type="button">
+                <span class="stat-main">✗ T2</span>
+                <span class="stat-sub">Da 2 Sbagliato</span>
+              </button>
+
+              <button class="stat-btn stat-made stat-three" data-stat="FG3M" type="button">
+                <span class="stat-main">+3</span>
+                <span class="stat-sub">Da 3 Segnato ✓</span>
+              </button>
+              <button class="stat-btn stat-miss" data-stat="FG3_MISS" type="button">
+                <span class="stat-main">✗ T3</span>
+                <span class="stat-sub">Da 3 Sbagliato</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="pad-section">
+            <div class="pad-label">RIMBALZI &amp; GIOCO</div>
+            <div class="other-grid">
+              <button class="stat-btn stat-reb" data-stat="DREB" type="button">
+                <span class="stat-main">R. Dif</span>
+                <span class="stat-sub">Rimbalzo Dif.</span>
+              </button>
+              <button class="stat-btn stat-reb" data-stat="OREB" type="button">
+                <span class="stat-main">R. Off</span>
+                <span class="stat-sub">Rimbalzo Off.</span>
+              </button>
+
+              <button class="stat-btn stat-pos" data-stat="AST" type="button">
+                <span class="stat-main">Assist</span>
+                <span class="stat-sub">Passaggio vincente</span>
+              </button>
+              <button class="stat-btn stat-pos" data-stat="STL" type="button">
+                <span class="stat-main">Recupero</span>
+                <span class="stat-sub">Palla rubata</span>
+              </button>
+
+              <button class="stat-btn stat-neg" data-stat="TOV" type="button">
+                <span class="stat-main">Persa</span>
+                <span class="stat-sub">Palla persa</span>
+              </button>
+              <button class="stat-btn stat-pos" data-stat="BLK" type="button">
+                <span class="stat-main">Stoppata</span>
+                <span class="stat-sub">Tiro stoppato</span>
+              </button>
+
+              <button class="stat-btn stat-foul" data-stat="PF" type="button">
+                <span class="stat-main">Fallo Fatto</span>
+                <span class="stat-sub">+1 Fallo squad.</span>
+              </button>
+              <button class="stat-btn stat-pos" data-stat="PFD" type="button">
+                <span class="stat-main">Fallo Subito</span>
+                <span class="stat-sub">Contatto subito</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </section>
+
+    <!-- ==================== BOX SCORE / EXPORT MODAL ==================== -->
+    <div id="boxscore-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="boxscore-title">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-xl">
+        <div class="modal-header no-print">
+          <div>
+            <h2 id="boxscore-title">Tabellino Partita</h2>
+            <p id="boxscore-subtitle" class="modal-subtitle"></p>
+          </div>
+          <button id="btn-close-boxscore" class="btn btn-ghost btn-sm" type="button">✕ Chiudi</button>
+        </div>
+
+        <div id="printable-boxscore" class="boxscore-body">
+          <div class="print-only-header">
+            <h2 id="print-match-title"></h2>
+            <p id="print-match-date"></p>
+          </div>
+
+          <!-- Quarter Breakdown -->
+          <div class="quarter-table-wrap">
+            <table id="quarter-table" class="stats-table quarter-table"></table>
+          </div>
+
+          <!-- Team Shooting Summary -->
+          <div id="team-shooting-cards" class="team-shooting-cards"></div>
+
+          <!-- Player Box Score -->
+          <div class="player-table-wrap">
+            <table id="player-boxscore-table" class="stats-table"></table>
+          </div>
+        </div>
+
+        <div class="modal-footer no-print">
+          <div class="export-buttons">
+            <button id="btn-export-png" class="btn btn-primary" type="button">🖼 Scarica Immagine (PNG)</button>
+            <button id="btn-copy-whatsapp" class="btn btn-secondary" type="button">💬 Copia per WhatsApp</button>
+            <button id="btn-export-csv" class="btn btn-ghost" type="button">📥 Esporta CSV (Excel)</button>
+            <button id="btn-print-pdf" class="btn btn-ghost" type="button">🖨 Stampa / PDF</button>
+          </div>
+          <div id="finish-match-actions" class="finish-actions hidden">
+            <button id="btn-save-history" class="btn btn-success" type="button">💾 Salva nello Storico &amp; Termina</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PLAY-BY-PLAY MODAL ==================== -->
+    <div id="pbp-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Cronaca Partita (Play-by-Play)</h2>
+          <button id="btn-close-pbp" class="btn btn-ghost btn-sm" type="button">✕ Chiudi</button>
+        </div>
+        <div id="pbp-list" class="pbp-list"></div>
+      </div>
+    </div>
+
+    <!-- ==================== EDIT CLOCK MODAL ==================== -->
+    <div id="clock-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2>Modifica Cronometro</h2>
+          <button id="btn-close-clock" class="btn btn-ghost btn-sm" type="button">✕</button>
+        </div>
+        <div class="clock-edit-body">
+          <div class="form-group">
+            <label for="edit-clock-min">Minuti</label>
+            <input id="edit-clock-min" type="number" min="0" max="20" />
+          </div>
+          <div class="form-group">
+            <label for="edit-clock-sec">Secondi</label>
+            <input id="edit-clock-sec" type="number" min="0" max="59" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-save-clock" class="btn btn-primary" type="button">Applica</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PWA HELP MODAL ==================== -->
+    <div id="pwa-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2>Installa su iPad (Offline)</h2>
+          <button id="btn-close-pwa" class="btn btn-ghost btn-sm" type="button">✕</button>
+        </div>
+        <div class="pwa-steps">
+          <p>Puoi usare questa web app come un'app nativa sull'iPad, anche <strong>senza connessione internet</strong> in palestra:</p>
+          <ol>
+            <li>Apri questo sito con <strong>Safari</strong> sul tuo iPad.</li>
+            <li>Tocca l'icona <strong>Condividi</strong> (il quadrato con la freccia verso l'alto) in alto a destra.</li>
+            <li>Scorri e seleziona <strong>"Aggiungi alla schermata Home"</strong>.</li>
+            <li>Tocca <strong>Aggiungi</strong>: ora hai l'icona 🏀 direttamente sul tuo iPad!</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="export-canvas" class="hidden"></canvas>
+  <script src="./app.js"></script>
+</body>
+</html>
